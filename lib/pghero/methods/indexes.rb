@@ -117,8 +117,6 @@ module PgHero
             schemaname AS schema,
             t.relname AS table,
             ix.relname AS name,
-            regexp_replace(pg_get_indexdef(i.indexrelid), '^[^\\(]*\\((.*)\\)$', '\\1') AS columns,
-            regexp_replace(pg_get_indexdef(i.indexrelid), '.* USING ([^ ]*) \\(.*', '\\1') AS using,
             indisunique AS unique,
             indisprimary AS primary,
             indisvalid AS valid,
@@ -136,7 +134,10 @@ module PgHero
           ORDER BY
             1, 2
         SQL
-        ).map { |v| v["columns"] = v["columns"].sub(") WHERE (", " WHERE ").split(", ").map { |c| unquote(c) }; v }
+        ).each { |v|
+          v["using"] = v["definition"][/.* USING ([^ ]*) \(/, 1]
+          v["columns"] = v["definition"][/^[^\(]*\((.*)\)$/, 1].sub(") WHERE (", " WHERE ").split(", ").map { |c| unquote(c) }
+        }
       end
 
       def duplicate_indexes
