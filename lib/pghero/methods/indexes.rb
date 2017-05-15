@@ -135,8 +135,20 @@ module PgHero
             1, 2
         SQL
         ).each { |v|
-          v["using"] = v["definition"][/.* USING ([^ ]*) \(/, 1]
-          v["columns"] = v["definition"][/^[^\(]*\((.*)\)$/, 1].sub(") WHERE (", " WHERE ").split(", ").map { |c| unquote(c) }
+          if defined?(PgQuery)
+            query = PgQuery.parse(v["definition"])
+            v["using"] = query.tree[0]["IndexStmt"]["accessMethod"]
+            v["columns"] = query.tree[0]["IndexStmt"]["indexParams"].map { |v|
+              if expr = v["IndexElem"]["expr"]
+                PgQuery::Deparse.from(expr)
+              else
+                v["IndexElem"]["name"]
+              end
+            }
+          else
+            v["using"] = v["definition"][/.* USING ([^ ]*) \(/, 1]
+            v["columns"] = v["definition"][/^[^\(]*\((.*)\)$/, 1].sub(") WHERE (", " WHERE ").split(", ").map { |c| unquote(c) }
+          end
         }
       end
 
